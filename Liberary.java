@@ -1,327 +1,160 @@
-// LibraryManagementSystem.java (with MySQL Integration)
-import java.sql.*;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
 import java.util.*;
 
-public class LibraryManagementSystem {
+public class Library_management extends JFrame implements ActionListener {
+    private JLabel label1, label2, label3, label4, label5, label6, label7;
+    private JTextField textField1, textField2, textField3, textField4, textField5, textField6, textField7;
+    private JButton addButton, viewButton, editButton, deleteButton, clearButton,exitButton;
+    private JPanel panel;
+    private ArrayList<String[]> books = new ArrayList<String[]>();
 
-    static class DBUtil {
-        private static final String URL = "jdbc:mysql://localhost:3306/library_db";
-        private static final String USER = "root";
-        private static final String PASS = "password";
+    public Library_management() {
+        setTitle("Library Management System");
+        setSize(600, 300);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        public static Connection getConnection() throws SQLException {
-            return DriverManager.getConnection(URL, USER, PASS);
-        }
+        label1 = new JLabel("Book ID");
+        label2 = new JLabel("Book Title");
+        label3 = new JLabel("Author");
+        label4 = new JLabel("Publisher");
+        label5 = new JLabel("Year of Publication");
+        label6 = new JLabel("ISBN");
+        label7 = new JLabel("Number of Copies");
+
+        textField1 = new JTextField(10);
+        textField2 = new JTextField(20);
+        textField3 = new JTextField(20);
+        textField4 = new JTextField(20);
+        textField5 = new JTextField(10);
+        textField6 = new JTextField(20);
+        textField7 = new JTextField(10);
+
+        addButton = new JButton("Add");
+        viewButton = new JButton("View");
+        editButton = new JButton("Edit");
+        deleteButton = new JButton("Delete");
+        clearButton = new JButton("Clear");
+        exitButton=new JButton("Exit");
+
+        addButton.addActionListener(this);
+        viewButton.addActionListener(this);
+        editButton.addActionListener(this);
+        deleteButton.addActionListener(this);
+        clearButton.addActionListener(this);
+        exitButton.addActionListener(this);
+
+        panel = new JPanel(new GridLayout(10,2));
+        panel.add(label1);
+        panel.add(textField1);
+        panel.add(label2);
+        panel.add(textField2);
+        panel.add(label3);
+        panel.add(textField3);
+        panel.add(label4);
+        panel.add(textField4);
+        panel.add(label5);
+        panel.add(textField5);
+        panel.add(label6);
+        panel.add(textField6);
+        panel.add(label7);
+        panel.add(textField7);
+        panel.add(addButton);
+        panel.add(viewButton);
+        panel.add(editButton);
+        panel.add(deleteButton);
+        panel.add(clearButton);
+        panel.add(exitButton);
+
+
+        add(panel);
+        setVisible(true);
     }
 
-    static class Person {
-        protected int id;
-        protected String name;
-
-        public Person(int id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-    }
-
-    static class User extends Person {
-        private String password;
-        private List<Book> borrowedBooks;
-
-        public User(int id, String name, String password) {
-            super(id, name);
-            this.password = password;
-            this.borrowedBooks = new ArrayList<>();
-        }
-
-        public int getId() { return id; }
-        public String getName() { return name; }
-        public boolean checkPassword(String password) { return this.password.equals(password); }
-        public void borrowBook(Book book) {
-            borrowedBooks.add(book);
-            BorrowDAO.addBorrowedBook(id, book.getId());
-        }
-        public void returnBook(Book book) {
-            borrowedBooks.remove(book);
-            BorrowDAO.removeBorrowedBook(id, book.getId());
-        }
-        public List<Book> getBorrowedBooks() { return borrowedBooks; }
-    }
-
-    static class Book {
-        private int id;
-        private String title;
-        private String author;
-        private boolean isIssued;
-
-        public Book(int id, String title, String author) {
-            this.id = id;
-            this.title = title;
-            this.author = author;
-            this.isIssued = false;
-        }
-
-        public int getId() { return id; }
-        public String getTitle() { return title; }
-        public String getAuthor() { return author; }
-        public boolean isIssued() { return isIssued; }
-        public void setIssued(boolean issued) { this.isIssued = issued; }
-        public void showInfo() {
-            System.out.println(id + ": " + title + " by " + author + (isIssued ? " (Issued)" : ""));
-        }
-    }
-
-    static class BookDAO {
-        public static List<Book> loadBooks() {
-            List<Book> books = new ArrayList<>();
-            try (Connection conn = DBUtil.getConnection();
-                 Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery("SELECT * FROM books")) {
-                while (rs.next()) {
-                    Book book = new Book(rs.getInt("id"), rs.getString("title"), rs.getString("author"));
-                    book.setIssued(rs.getBoolean("is_issued"));
-                    books.add(book);
-                }
-            } catch (SQLException e) {
-                System.out.println("Error loading books: " + e.getMessage());
-            }
-            return books;
-        }
-
-        public static void saveBook(Book book) {
-            try (Connection conn = DBUtil.getConnection();
-                 PreparedStatement ps = conn.prepareStatement("REPLACE INTO books (id, title, author, is_issued) VALUES (?, ?, ?, ?)");) {
-                ps.setInt(1, book.getId());
-                ps.setString(2, book.getTitle());
-                ps.setString(3, book.getAuthor());
-                ps.setBoolean(4, book.isIssued());
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                System.out.println("Error saving book: " + e.getMessage());
-            }
-        }
-    }
-
-    static class UserDAO {
-        public static List<User> loadUsers() {
-            List<User> users = new ArrayList<>();
-            try (Connection conn = DBUtil.getConnection();
-                 Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery("SELECT * FROM users")) {
-                while (rs.next()) {
-                    users.add(new User(rs.getInt("id"), rs.getString("name"), rs.getString("password")));
-                }
-            } catch (SQLException e) {
-                System.out.println("Error loading users: " + e.getMessage());
-            }
-            return users;
-        }
-
-        public static void saveUser(User user) {
-            try (Connection conn = DBUtil.getConnection();
-                 PreparedStatement ps = conn.prepareStatement("REPLACE INTO users (id, name, password) VALUES (?, ?, ?)");) {
-                ps.setInt(1, user.getId());
-                ps.setString(2, user.getName());
-                ps.setString(3, user.password);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                System.out.println("Error saving user: " + e.getMessage());
-            }
-        }
-    }
-
-    static class BorrowDAO {
-        public static void addBorrowedBook(int userId, int bookId) {
-            try (Connection conn = DBUtil.getConnection();
-                 PreparedStatement ps = conn.prepareStatement("INSERT INTO borrowed_books (user_id, book_id) VALUES (?, ?)");) {
-                ps.setInt(1, userId);
-                ps.setInt(2, bookId);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                System.out.println("Error issuing book: " + e.getMessage());
-            }
-        }
-
-        public static void removeBorrowedBook(int userId, int bookId) {
-            try (Connection conn = DBUtil.getConnection();
-                 PreparedStatement ps = conn.prepareStatement("DELETE FROM borrowed_books WHERE user_id=? AND book_id=?");) {
-                ps.setInt(1, userId);
-                ps.setInt(2, bookId);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                System.out.println("Error returning book: " + e.getMessage());
-            }
-        }
-    }
-
-    static class LibrarySystem {
-        List<Book> books;
-        List<User> users;
-        User currentUser;
-        int nextBookId = 1;
-
-        public LibrarySystem() {
-            books = BookDAO.loadBooks();
-            users = UserDAO.loadUsers();
-            for (Book b : books) if (b.getId() >= nextBookId) nextBookId = b.getId() + 1;
-        }
-
-        public void registerUser(Scanner sc) {
-            System.out.print("Enter new user ID: ");
-            int newId = sc.nextInt(); sc.nextLine();
-            System.out.print("Enter your name: ");
-            String name = sc.nextLine();
-            System.out.print("Enter a password: ");
-            String password = sc.nextLine();
-            for (User user : users) if (user.getId() == newId) {
-                System.out.println("User ID already exists."); return; }
-            User newUser = new User(newId, name, password);
-            users.add(newUser);
-            UserDAO.saveUser(newUser);
-            System.out.println("Registration successful.");
-        }
-
-        public void login(Scanner sc) {
-            System.out.print("Enter user ID: ");
-            int userId = sc.nextInt(); sc.nextLine();
-            System.out.print("Enter password: ");
-            String pwd = sc.nextLine();
-            for (User user : users) if (user.getId() == userId && user.checkPassword(pwd)) {
-                currentUser = user;
-                System.out.println("Login successful. Welcome, " + user.getName());
-                return;
-            }
-            System.out.println("Invalid credentials.");
-        }
-
-        public void searchBook(Scanner sc) {
-            sc.nextLine();
-            System.out.print("Enter book title or author to search: ");
-            String query = sc.nextLine().toLowerCase();
-            boolean found = false;
-            for (Book book : books) {
-                if (book.getTitle().toLowerCase().contains(query) ||
-                    book.getAuthor().toLowerCase().contains(query)) {
-                    book.showInfo(); found = true;
-                }
-            }
-            if (!found) System.out.println("No book found.");
-        }
-
-        public void issueBook(Scanner sc) {
-            if (currentUser == null) {
-                System.out.println("Login first."); return;
-            }
-            sc.nextLine();
-            System.out.print("Enter book title to issue: ");
-            String title = sc.nextLine();
-            for (Book book : books) if (book.getTitle().equalsIgnoreCase(title)) {
-                if (!book.isIssued()) {
-                    book.setIssued(true);
-                    currentUser.borrowBook(book);
-                    BookDAO.saveBook(book);
-                    System.out.println("Book issued.");
-                } else System.out.println("Book is already issued.");
-                return;
-            }
-            System.out.print("Book not found. Add and issue it? (yes/no): ");
-            if (sc.nextLine().equalsIgnoreCase("yes")) {
-                System.out.print("Enter author: ");
-                String author = sc.nextLine();
-                Book newBook = new Book(nextBookId++, title, author);
-                newBook.setIssued(true);
-                books.add(newBook);
-                currentUser.borrowBook(newBook);
-                BookDAO.saveBook(newBook);
-                System.out.println("Book added and issued.");
-            }
-        }
-
-        public void returnBook(Scanner sc) {
-            if (currentUser == null) {
-                System.out.println("Login first."); return;
-            }
-            sc.nextLine();
-            System.out.print("Enter book title to return: ");
-            String title = sc.nextLine();
-            for (Book book : currentUser.getBorrowedBooks()) {
-                if (book.getTitle().equalsIgnoreCase(title)) {
-                    book.setIssued(false);
-                    currentUser.returnBook(book);
-                    BookDAO.saveBook(book);
-                    System.out.println("Book returned."); return;
-                }
-            }
-            System.out.println("Book not in your list.");
-        }
-
-        public void generateReport() {
-            if (currentUser == null) {
-                System.out.println("Login first."); return;
-            }
-            System.out.println("=== Report for " + currentUser.getName() + " ===");
-            if (!currentUser.getBorrowedBooks().isEmpty()) {
-                for (Book b : currentUser.getBorrowedBooks()) System.out.println("- " + b.getTitle());
-            } else System.out.println("No books borrowed.");
-        }
-
-        public void addBook(Scanner sc) {
-            if (currentUser == null) {
-                System.out.println("Login first."); return;
-            }
-            sc.nextLine();
-            System.out.print("Enter book title: ");
-            String title = sc.nextLine();
-            System.out.print("Enter author: ");
-            String author = sc.nextLine();
-            Book book = new Book(nextBookId++, title, author);
+    public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == addButton) {
+            String[] book = new String[7];
+            book[0] = textField1.getText();
+            book[1] = textField2.getText();
+            book[2] = textField3.getText();
+            book[3] = textField4.getText();
+            book[4] = textField5.getText();
+            book[5] = textField6.getText();
+            book[6] = textField7.getText();
             books.add(book);
-            BookDAO.saveBook(book);
-            System.out.println("Book added.");
+            JOptionPane.showMessageDialog(this, "Book added successfully");
+            clearFields();
         }
-    }
+        else if (e.getSource() == viewButton) {
+            String[] columns = {"Book ID", "Book Title", "Author", "Publisher", "Year of Publication", "ISBN", "Number of Copies"};
+            Object[][] data = new Object[books.size()][7];
+            for (int i = 0; i < books.size(); i++) {
+                data[i][0] = books.get(i)[0];
+                data[i][1] = books.get(i)[1];
+                data[i][2] = books.get(i)[2];
+                data[i][3] = books.get(i)[3];
+                data[i][4] = books.get(i)[4];
+data[i][5] = books.get(i)[5];
+data[i][6] = books.get(i)[6];
+}
+JTable table = new JTable(data, columns);
+JScrollPane scrollPane = new JScrollPane(table);
+JFrame frame = new JFrame("View Books");
+frame.add(scrollPane);
+frame.setSize(800, 400);
+frame.setVisible(true);
+}
+else if (e.getSource() == editButton) {
+String bookID = JOptionPane.showInputDialog(this, "Enter book ID to edit:");
+for (int i = 0; i < books.size(); i++) {
+if (books.get(i)[0].equals(bookID)) {
+String[] book = new String[7];
+book[0] = bookID;
+book[1] = textField2.getText();
+book[2] = textField3.getText();
+book[3] = textField4.getText();
+book[4] = textField5.getText();
+book[5] = textField6.getText();
+book[6] = textField7.getText();
+books.set(i, book);
+JOptionPane.showMessageDialog(this, "Book edited successfully");
+clearFields();
+return;
+}
+}
+JOptionPane.showMessageDialog(this, "Book not found");
+}
+else if (e.getSource() == deleteButton) {
+String bookID = JOptionPane.showInputDialog(this, "Enter book ID to delete:");
+for (int i = 0; i < books.size(); i++) {
+if (books.get(i)[0].equals(bookID)) {
+books.remove(i);
+JOptionPane.showMessageDialog(this, "Book deleted successfully");
+clearFields();
+return;
+}
+}
+JOptionPane.showMessageDialog(this, "Book not found");
+}
+else if (e.getSource() == clearButton) {
+clearFields();
+}
+        else if (e.getSource() == exitButton) {
+            System.exit(0);
+        }
+}
+    private void clearFields() {
+    textField1.setText("");
+    textField2.setText("");
+    textField3.setText("");
+    textField4.setText("");
+    textField5.setText("");
+    textField6.setText("");
+    textField7.setText("");
+}
 
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        LibrarySystem lib = new LibrarySystem();
-        int choice = -1;
-
-        System.out.println("=== GUVI Library Management System ===");
-
-        do {
-            System.out.println("\nMenu:");
-            System.out.println("0. Register");
-            System.out.println("1. Login");
-            System.out.println("2. Search Book");
-            System.out.println("3. Issue Book");
-            System.out.println("4. Return Book");
-            System.out.println("5. Generate Report");
-            System.out.println("6. Add Book");
-            System.out.println("7. Exit");
-            System.out.print("Choose an option: ");
-
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-            } else {
-                System.out.println("Invalid input.");
-                scanner.next();
-                continue;
-            }
-
-            switch (choice) {
-                case 0 -> lib.registerUser(scanner);
-                case 1 -> lib.login(scanner);
-                case 2 -> lib.searchBook(scanner);
-                case 3 -> lib.issueBook(scanner);
-                case 4 -> lib.returnBook(scanner);
-                case 5 -> lib.generateReport();
-                case 6 -> lib.addBook(scanner);
-                case 7 -> System.out.println("Exiting...");
-                default -> System.out.println("Invalid option.");
-            }
-
-        } while (choice != 7);
-
-        scanner.close();
-    }
+public static void main(String[] args) {
+    new Library_management();
+}
 }
